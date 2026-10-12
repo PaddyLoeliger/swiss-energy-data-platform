@@ -5,3 +5,7 @@ data
 **/__pycache__
 **/*.egg-info
 .pytest_cache
+
+analytics/target/
+analytics/logs/
+analytics/dbt_packages/

@@ -1,0 +1,76 @@
+version: 2
+sources:
+  - name: energy_raw
+    schema: public
+    description: "SFOE/Swissgrid reported daily electricity production, preserved by Python ingestion."
+    tables:
+      - name: ingestion_runs
+        columns:
+          - name: id
+            data_tests: [unique, not_null]
+      - name: electricity_production
+        columns:
+          - name: production_date
+            data_tests: [not_null]
+          - name: energy_carrier
+            data_tests: [not_null]
+          - name: production_gwh
+            data_tests: [not_null]
+          - name: run_id
+            data_tests:
+              - not_null
+              - relationships:
+                  arguments:
+                    to: source('energy_raw', 'ingestion_runs')
+                    field: id
+seeds:
+  - name: dim_energy_carrier
+    description: "Explicit expected set of six source categories; changes require review, not silent inference."
+    columns:
+      - name: energy_carrier
+        data_tests: [unique, not_null]
+      - name: carrier_label
+        data_tests: [not_null]
+models:
+  - name: stg_electricity_production
+    description: "One source observation per date/carrier, including negative values and source-run lineage."
+    columns:
+      - name: energy_carrier
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_energy_carrier')
+                field: energy_carrier
+  - name: fct_daily_generation
+    description: "Dense calendar between observed minimum and maximum dates. Missing days have NULL totals. Usable requires all six known carriers and no negatives."
+    columns:
+      - name: production_date
+        data_tests: [unique, not_null]
+      - name: usable_total_gwh
+        description: "Signed source total only for complete non-negative days; NULL otherwise. Zero is valid."
+  - name: fct_daily_generation_mix
+    description: "Dense date/carrier grid. Shares are fractions (0 to 1), NULL for incomplete, negative or zero-total days."
+    columns:
+      - name: production_date
+        data_tests: [not_null]
+      - name: energy_carrier
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_energy_carrier')
+                field: energy_carrier
+      - name: run_id
+        description: "NULL for missing observations; otherwise retains ingestion provenance."
+        data_tests:
+          - relationships:
+              arguments:
+                to: source('energy_raw', 'ingestion_runs')
+                field: id
+  - name: fct_generation_rolling
+    description: "Trailing seven calendar days including current date; average is NULL unless all seven days are usable."
+    columns:
+      - name: production_date
+        data_tests: [unique, not_null]
+  - name: energy_quality_status
+    description: "Current-date freshness warning, missing-day count and negative-value-day count; freshness is not ingestion time."

@@ -1,6 +1,19 @@
 # Swiss Energy Intelligence Platform
 
-Phase 1 is a local Python → PostgreSQL pipeline for daily Swiss electricity production. It demonstrates validation, transactional loads, repeatable execution, source corrections, provenance and CI. It is a portfolio project, not a production service or a claim of professional cloud experience.
+The foundation is a local Python â†’ PostgreSQL pipeline for daily Swiss electricity production. It demonstrates validation, transactional loads, repeatable execution, source corrections, provenance and CI. It is a portfolio project, not a production service or a claim of professional cloud experience.
+
+## Phase 2: SQL/dbt analytics
+
+Phase 2 adds daily totals, generation mix, seven-day rolling averages and a data-quality status view. Start with the [Phase 2 walkthrough and metric definitions](docs/PHASE2.md). After ingestion, run:
+
+```powershell
+.\tasks.ps1 analytics-test
+.\tasks.ps1 analytics
+.\tasks.ps1 quality
+.\tasks.ps1 explain
+```
+
+Missing and negative measurements are visible; derived shares and averages are withheld when their inputs are unsuitable. Models rebuild in full so historical source corrections propagate reliably. CI exercises these behaviors against a separate test database.
 
 ## Data and architecture
 

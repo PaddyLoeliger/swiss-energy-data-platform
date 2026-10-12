@@ -1,0 +1,22 @@
+name: swiss_energy
+version: '0.2.0'
+config-version: 2
+profile: swiss_energy
+model-paths: [models]
+seed-paths: [seeds]
+test-paths: [tests]
+macro-paths: [macros]
+vars:
+  max_source_age_days: 7
+models:
+  swiss_energy:
+    +materialized: table
+    staging:
+      +materialized: view
+    monitoring:
+      +materialized: view
+seeds:
+  swiss_energy:
+    +column_types:
+      energy_carrier: text
+      carrier_label: text

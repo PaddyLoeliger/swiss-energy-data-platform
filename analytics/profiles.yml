@@ -1,0 +1,13 @@
+swiss_energy:
+  target: local
+  outputs:
+    local:
+      type: postgres
+      host: "{{ env_var('PGHOST', 'db') }}"
+      port: 5432
+      user: "{{ env_var('PGUSER', 'energy') }}"
+      password: "{{ env_var('DBT_ENV_SECRET_PGPASSWORD') }}"
+      dbname: "{{ env_var('PGDATABASE', 'energy') }}"
+      schema: analytics
+      threads: 2
+      connect_timeout: 10

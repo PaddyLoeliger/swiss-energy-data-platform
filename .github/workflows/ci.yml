@@ -1,4 +1,4 @@
-name: Python and PostgreSQL checks
+name: Python, PostgreSQL and dbt checks
 on:
   push:
   pull_request:
@@ -14,6 +14,8 @@ jobs:
         run: printf 'POSTGRES_PASSWORD=%s\n' "$(openssl rand -hex 32)" > .env
       - name: Build and test against PostgreSQL
         run: docker compose --profile test run --build --rm tests
+      - name: Test dbt models, historical corrections and quality rules
+        run: docker compose --profile test run --build --rm analytics-tests
       - name: Clean up
         if: always()
         run: docker compose --profile test down -v

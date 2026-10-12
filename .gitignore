@@ -8,3 +8,7 @@ build/
 dist/
 data/
 .coverage
+
+analytics/target/
+analytics/logs/
+analytics/dbt_packages/

@@ -49,7 +49,35 @@ services:
       PGUSER: energy_test
       PGPASSWORD: ${POSTGRES_PASSWORD:?Run tasks.ps1 init first}
       RUN_INTEGRATION: "1"
-    command: ["pytest", "-q", "-p", "no:cacheprovider"]
+    command: ["pytest", "-q", "-p", "no:cacheprovider", "tests/test_pipeline.py", "tests/test_database.py"]
+    depends_on:
+      test-db:
+        condition: service_healthy
+  analytics:
+    build:
+      context: .
+      dockerfile: Dockerfile.analytics
+    environment:
+      PGHOST: db
+      PGDATABASE: ${POSTGRES_DB:-energy}
+      PGUSER: ${POSTGRES_USER:-energy}
+      DBT_ENV_SECRET_PGPASSWORD: ${POSTGRES_PASSWORD:?Run tasks.ps1 init first}
+    depends_on:
+      db:
+        condition: service_healthy
+  analytics-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile.analytics
+    profiles: [test]
+    environment:
+      PGHOST: test-db
+      PGDATABASE: energy_test
+      PGUSER: energy_test
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Run tasks.ps1 init first}
+      DBT_ENV_SECRET_PGPASSWORD: ${POSTGRES_PASSWORD:?Run tasks.ps1 init first}
+      RUN_DBT_INTEGRATION: "1"
+    command: ["pytest", "-q", "-p", "no:cacheprovider", "tests/test_analytics.py"]
     depends_on:
       test-db:
         condition: service_healthy

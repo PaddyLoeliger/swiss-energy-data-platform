@@ -1,4 +1,4 @@
-param([ValidateSet('doctor','init','build','up','ingest','verify','test','down')][string]$Task = 'doctor')
+param([ValidateSet('doctor','init','build','up','ingest','verify','test','analytics','analytics-test','quality','explain','down')][string]$Task = 'doctor')
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
 function Invoke-Docker {
@@ -33,6 +33,18 @@ switch ($Task) {
     test {
         try { Invoke-Docker compose --profile test run --build --rm tests }
         finally { Invoke-Docker compose --profile test stop test-db }
+    }
+    analytics { Invoke-Docker compose run --build --rm analytics dbt build }
+    analytics-test {
+        try { Invoke-Docker compose --profile test run --build --rm analytics-tests }
+        finally { Invoke-Docker compose --profile test stop test-db }
+    }
+    quality {
+        Invoke-Docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT * FROM analytics.energy_quality_status;"'
+    }
+    explain {
+        Get-Content analytics/queries/explain.sql -Raw | & docker compose exec -T db sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+        if ($LASTEXITCODE -ne 0) { throw 'Query plan inspection failed' }
     }
     down { Invoke-Docker compose --profile test down }
 }
