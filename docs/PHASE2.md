@@ -1,5 +1,11 @@
 # Phase 2: SQL and dbt analytics
 
+Status: implemented; local and [GitHub CI verification](https://github.com/PaddyLoeliger/swiss-energy-data-platform/actions/runs/38274342924) passed for commit `22d2153`.
+
+## Objective and prerequisites
+
+Transform the Phase 1 raw tables into documented analytics while preserving source uncertainty. Complete [Phase 1](PHASE1.md), including a successful ingestion, first. Docker supplies dbt Core 1.12.5 and dbt-postgres 1.11.0; no host dbt installation is required. Direct versions are pinned, but image digests and transitive dependencies are not fully locked.
+
 ## Run and validate
 
 From PowerShell in `C:\Projects\Swiss Energy Platform`, run each command separately:
@@ -11,12 +17,12 @@ From PowerShell in `C:\Projects\Swiss Energy Platform`, run each command separat
 .\tasks.ps1 explain
 ```
 
-- `analytics-test`: builds the pinned dbt image and runs a PostgreSQL integration scenario. It performs three complete dbt builds and an intentional failing contract test. Expect `1 passed`; a failure prints captured dbt output. It uses only `energy_test`, never the application data.
+- `analytics-test`: builds the dbt image with pinned direct package versions and runs a PostgreSQL integration scenario. It performs three complete dbt builds and an intentional failing contract test. Expect `1 passed`; a failure prints captured dbt output. It uses only `energy_test`, never the application data.
 - `analytics`: rebuilds the image as needed and runs `dbt build` against your ingested data. Expect no errors. Warnings about stale data and negative values are deliberate; a successful build does not mean the source is fresh or error-free.
 - `quality`: displays source date coverage, source age, incomplete days and negative-value days. Run this after each ingestion and transformation. Ingestion alone does not refresh analytics tables.
 - `explain`: executes two read-only `EXPLAIN (ANALYZE, BUFFERS)` examples. It measures actual query execution; timings depend on cache and hardware.
 
-For a fresh clone, follow README initialization and ingestion first. The raw tables must exist before dbt runs. All dbt authentication comes from environment variables; the committed profiles file contains no password. dbt uses its `DBT_ENV_SECRET_` prefix to redact the password in logs.
+For a fresh clone, follow the Phase 1 initialization and ingestion guide first. The raw tables must exist before dbt runs. All dbt authentication comes from environment variables; the committed profiles file contains no password. dbt uses its `DBT_ENV_SECRET_` prefix to redact the password in logs.
 
 ## Models and grain
 
@@ -39,7 +45,7 @@ All dbt relations live in `analytics`, separate from the ingestion tables in `pu
 | `dim_energy_carrier` | One of six reviewed source categories | Expected category contract and English labels |
 | `stg_electricity_production` | Observed day/carrier | Preserve reported GWh, negative flag and source run |
 | `fct_daily_generation` | Every calendar day in source range | Total, completeness and usability |
-| `fct_daily_generation_mix` | Every calendar day × expected carrier | Nullable GWh and generation share (fraction, not percent) |
+| `fct_daily_generation_mix` | Every calendar day Ã— expected carrier | Nullable GWh and generation share (fraction, not percent) |
 | `fct_generation_rolling` | Every calendar day in source range | Seven-day average of daily usable total GWh |
 | `energy_quality_status` | One row | Freshness and aggregate quality status |
 
@@ -53,7 +59,7 @@ The expected carriers are Flusskraft, Kernkraft, Photovoltaik, Speicherkraft, Th
 4. A complete zero-total day is usable with total zero, but shares remain NULL because division by zero has no valid interpretation.
 5. Shares divide by that day's complete, non-negative, positive total. Fractions sum to one within numeric tolerance; multiply by 100 only for display.
 6. A rolling average covers the current calendar day plus the preceding six. It appears only when all seven days exist and are usable. Short initial windows and any missing/flagged day produce NULL, not an average over fewer available rows.
-7. Freshness compares the latest observation date with PostgreSQL `current_date`, not the last download timestamp. The seven-day threshold is a project policy, not an asserted source SLA. Override with `dbt build --vars '{max_source_age_days: 14}'` if intentionally adopting another policy.
+7. Freshness compares the latest observation date with PostgreSQL `current_date`, not the last download timestamp. The seven-day threshold is a project policy, not an asserted source SLA. Override inside Docker with `docker compose run --rm analytics dbt build --vars '{max_source_age_days: 14}'` if intentionally adopting another policy.
 
 Freshness and known negative/incomplete source days are warning-level dbt tests so historical analysis can run. Empty data, duplicate grains, missing provenance, unknown categories and broken share/rolling invariants fail the build. Warnings must remain visible in demonstrations.
 
@@ -71,7 +77,7 @@ dbt build artifacts/logs live in the disposable container's `/tmp` and are exclu
 
 References: [PostgreSQL adapter setup](https://docs.getdbt.com/docs/local/connect-data-platform/postgres-setup), [dbt data tests](https://docs.getdbt.com/docs/build/data-tests).
 
-## Observed local validation — 12 October 2026
+## Observed local validation â€” 12 October 2026
 
 - dbt Core 1.12.5, dbt-postgres 1.11.0, PostgreSQL 16; Docker images built successfully.
 - Original ingestion tests: 15 passed. Analytics integration scenario: 1 passed (three dbt builds plus intentional unknown-category rejection).
@@ -81,3 +87,28 @@ References: [PostgreSQL adapter setup](https://docs.getdbt.com/docs/local/connec
 - Seven-day date filter: bitmap index/heap scan, 42 rows, two shared buffer hits and two reads, 0.095 ms execution.
 
 These are single local observations, not benchmarks or guaranteed timings. PostgreSQL row estimates differed from actual rows on freshly rebuilt tables; automatic statistics collection and caching can change subsequent plans. Both command outputs were inspected directly.
+
+## Inspect analytics and recover
+
+For the default database/user, inspect recent totals and warnings:
+
+```powershell
+docker compose exec -T db psql -U energy -d energy -c "SELECT production_date, reported_total_gwh, usable_total_gwh, is_complete_day FROM analytics.fct_daily_generation ORDER BY production_date DESC LIMIT 7;"
+docker compose exec -T db psql -U energy -d energy -c "SELECT production_date, energy_carrier, production_gwh, generation_share FROM analytics.fct_daily_generation_mix WHERE NOT is_usable_day ORDER BY production_date DESC LIMIT 12;"
+```
+
+Adjust database/user if their defaults were changed. For the validated snapshot the last day's usable total and shares are NULL because one carrier is negative. These examples are read-only inspection, not fixtures with fixed expected production values.
+
+| Symptom | Next action |
+|---|---|
+| Raw relation does not exist | Run Phase 1 `ingest` then `verify`; rebuilding dbt cannot create ingestion tables |
+| Analytics relation does not exist | Run `analytics`; inspect the first dbt error, not only downstream skipped nodes |
+| Unknown carrier relationship failure | Inspect the source category, decide its meaning and explicitly review the seed/contract; do not suppress the failing test |
+| Freshness or negative-value warning | Inspect `quality` and affected records; retain the warning and explain the limitation |
+| Mid-build failure | Fix the cause, rerun the complete `analytics` task, and only use outputs after success; partial builds can leave mixed vintages |
+| Results unchanged after new ingestion | Run `analytics` again; raw changes do not refresh materialized tables automatically |
+| Quality query after `down` fails | Run `up`; `quality` and `explain` use `exec` and do not start the database themselves |
+
+Use Phase 1 `down`/`up` for lifecycle management; analytics tables persist in the same database volume. Test commands share one isolated test database and must run sequentially. No scheduler or automatic refresh is installed.
+
+The exit gate is successful model construction, tested definitions (including late corrections and quality edge cases), explained actual query plans and passing CI. It is satisfied for this implementation; the two source warnings are documented limitations, not unresolved transformation failures. See [consolidated evidence](VALIDATION.md) and [planned Phase 3](PHASE3.md).

@@ -1,12 +1,18 @@
 # Incremental roadmap
 
-Each phase must leave a demonstrable working system. Avoid adding a tool solely to list it on a CV.
+Each phase must leave a demonstrable working system. Add tools to meet an engineering or learning objective, not solely to list them on a CV.
 
-1. **Local foundation (completed):** real SFOE ingestion, PostgreSQL, Docker, tests, CI definition, raw provenance and repeatable commands. Exit: successful real load and replay, SQL verification, all unit/integration tests passed. Local end-to-end and remote CI checks passed; see validation record.
-2. **SQL/dbt analytics (local validation complete):** staging models, daily generation mix, rolling aggregates and documented source completeness rules. Add dbt uniqueness/not-null/relationship tests and late-correction scenarios. Exit: reproducible models plus explained query plans.
-3. **Airflow operations:** schedule the existing ingestion entry point, bounded retries, concurrency control, backfills, durable failed-run audit and freshness alerts. Exit: demonstrate recovery from a failed run without duplicates.
-4. **Azure storage and Terraform:** budget alerts first; provision a minimal ADLS layout and identity-based access. Keep cloud infrastructure optional and document teardown. Exit: raw snapshots replayable from storage with no embedded credentials.
-5. **Databricks/PySpark and Delta:** move validated data into bronze/silver/gold layers, demonstrate merge semantics and schema evolution. This small dataset does not require Spark for scale; explain that the purpose is cloud implementation practice. Exit: local/cloud reconciliation tests and cost evidence.
-6. **Delivery and portfolio evidence:** environment-specific CI/CD, OIDC, image/dependency updates, SQL dashboard, architecture decisions and an incident/recovery walkthrough. Exit: a reviewer can reproduce the demo, understand trade-offs and distinguish personal project skills from employment experience.
+| Phase | Status | Exit gate |
+|---|---|---|
+| [1 - Local foundation](PHASE1.md) | Complete for defined local scope | Live ingestion and replay, SQL verification, 15 tests and remote CI passed |
+| [2 - SQL/dbt analytics](PHASE2.md) | Complete for defined local scope | Models and quality rules verified, historical corrections tested, actual plans explained, remote CI passed |
+| [3 - Airflow operations](PHASE3.md) | Planned | Scheduled execution, concurrency limits, durable failure audit and demonstrated recovery |
+| [4 - Azure storage/Terraform](PHASE4.md) | Planned | Reviewed provisioning, identity access, replayable snapshots, cost evidence and teardown |
+| [5 - Databricks/PySpark/Delta](PHASE5.md) | Planned | Local/cloud reconciliation, corrections/schema tests and compute-cost evidence |
+| [6 - Delivery/portfolio](PHASE6.md) | Planned | Reproducible demo, tested deployment/rollback, visible data quality and credible portfolio claims |
 
-Later Phase 1 hardening: database migrations, image digest locks, persisted failure audit, bounded raw retention, deletion reconciliation and richer completeness checks. Kafka and Kubernetes are not justified by this batch workload.
+[Validation evidence](VALIDATION.md) supports completed-phase status. Planned-phase guides contain prerequisites, deliverables, open decisions and acceptance checks; executable runbooks will be written alongside implementation.
+
+Before claiming current energy monitoring, resolve the stale-source limitation or explicitly constrain the use case to historical analysis. Before production use, address migrations, backups and tested restore, least-privilege database roles, image/transitive-dependency locks, failure audit, retention, deletion reconciliation and concurrent execution. Existing dbt builds are not atomic across the entire graph.
+
+Kafka and Kubernetes are not justified by the present batch workload. The next implementation phase is Airflow, subject to the choices in its planning brief.
