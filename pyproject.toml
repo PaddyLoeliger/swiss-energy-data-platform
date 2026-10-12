@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools==80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "swiss-energy-data-platform"
+version = "0.1.0"
+description = "Reproducible ingestion of Swiss electricity production into PostgreSQL"
+requires-python = ">=3.12"
+dependencies = ["psycopg[binary]==3.2.10"]
+
+[project.optional-dependencies]
+test = ["pytest==8.4.2"]
+
+[project.scripts]
+energy = "energy_platform.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["integration: requires an isolated PostgreSQL test database"]

@@ -1,0 +1,58 @@
+name: swiss-energy-data-platform
+services:
+  db:
+    image: postgres:16-bookworm
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-energy}
+      POSTGRES_USER: ${POSTGRES_USER:-energy}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run tasks.ps1 init first}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  pipeline:
+    build: .
+    environment:
+      PGHOST: db
+      PGDATABASE: ${POSTGRES_DB:-energy}
+      PGUSER: ${POSTGRES_USER:-energy}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Run tasks.ps1 init first}
+      RAW_DIR: /data/raw
+    volumes:
+      - raw_data:/data
+    depends_on:
+      db:
+        condition: service_healthy
+  test-db:
+    image: postgres:16-bookworm
+    profiles: [test]
+    environment:
+      POSTGRES_DB: energy_test
+      POSTGRES_USER: energy_test
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run tasks.ps1 init first}
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U energy_test -d energy_test"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  tests:
+    build: .
+    profiles: [test]
+    environment:
+      PGHOST: test-db
+      PGDATABASE: energy_test
+      PGUSER: energy_test
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Run tasks.ps1 init first}
+      RUN_INTEGRATION: "1"
+    command: ["pytest", "-q", "-p", "no:cacheprovider"]
+    depends_on:
+      test-db:
+        condition: service_healthy
+volumes:
+  postgres_data:
+  raw_data:

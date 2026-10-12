@@ -1,0 +1,19 @@
+name: Python and PostgreSQL checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create ephemeral local credentials
+        run: printf 'POSTGRES_PASSWORD=%s\n' "$(openssl rand -hex 32)" > .env
+      - name: Build and test against PostgreSQL
+        run: docker compose --profile test run --build --rm tests
+      - name: Clean up
+        if: always()
+        run: docker compose --profile test down -v
