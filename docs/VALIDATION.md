@@ -24,4 +24,4 @@ The first live attempt correctly failed the original non-negative check. Inspect
 
 The test database was stopped after testing. The project database remains available locally. Existing unrelated containers were not changed.
 
-GitHub Actions verification will be recorded after publication; local test success alone does not establish remote CI success.
+GitHub Actions passed for implementation commit `fe7d1ea361095ec5f3acec5e815cfb6480486775`: [verified run](https://github.com/PaddyLoeliger/swiss-energy-data-platform/actions/runs/38270109079). The workflow built the image and ran the PostgreSQL-backed test suite on GitHub. Local verification was also rerun successfully after relocating the repository to `C:\Projects\Swiss Energy Platform`.
